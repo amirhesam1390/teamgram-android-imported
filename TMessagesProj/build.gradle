@@ -92,7 +92,6 @@ android {
             debuggable true
             jniDebuggable true
             signingConfig signingConfigs.debug
-            // applicationIdSuffix ".beta" // برای نصب روی نسخه اصلی حذف شد
             minifyEnabled false
             shrinkResources false
             multiDexEnabled true
@@ -121,7 +120,7 @@ android {
 
     flavorDimensions "minApi"
 
-    // ⬇️⬇️⬇️ بخش اصلاح شده: minSdkVersion از داخل flavorها حذف شد ⬇️⬇️⬇️
+    // ✅ این بخش دقیقاً همان چیزی است که باید باشد (بدون minSdkVersion)
     productFlavors {
         armv7 { ndk { abiFilters "armeabi-v7a" } ext { abiVersionCode = 1 } }
         x86 { ndk { abiFilters "x86" } ext { abiVersionCode = 2 } }
@@ -180,8 +179,9 @@ android {
         }
     }
 
+    // ✅ minSdkVersion فقط اینجا تعریف شده است
     defaultConfig {
-        minSdkVersion 23 // ⬅️ فقط اینجا تعریف شده است
+        minSdkVersion 23
         targetSdkVersion 33
         versionName "7.10.0"
 

@@ -15,11 +15,11 @@ jobs:
       with:
         submodules: recursive
 
-    # JDK 8 — دقیقاً همون چیزی که پروژه باهاش ساخته شده
-    - name: Set up JDK 8
+    # مرحله ۱: JDK 17 فقط برای نصب NDK
+    - name: Set up JDK 17 for SDK Manager
       uses: actions/setup-java@v4
       with:
-        java-version: '8'
+        java-version: '17'
         distribution: 'temurin'
 
     - name: Setup Android SDK
@@ -29,13 +29,19 @@ jobs:
         echo "/usr/local/lib/android/sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
         echo "/usr/local/lib/android/sdk/platform-tools" >> $GITHUB_PATH
 
-    # NDK 20 — دقیقاً همون چیزی که Teamgram نیاز داره
     - name: Install NDK
       run: |
         export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
         yes | sdkmanager --licenses || true
         sdkmanager "ndk;20.0.5594570"
         echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/20.0.5594570" >> $GITHUB_ENV
+
+    # مرحله ۲: حالا JDK 8 برای بیلد Gradle
+    - name: Set up JDK 8 for Gradle
+      uses: actions/setup-java@v4
+      with:
+        java-version: '8'
+        distribution: 'temurin'
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew

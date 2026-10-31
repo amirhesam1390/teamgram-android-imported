@@ -35,14 +35,22 @@ jobs:
         sdkmanager "ndk;27.2.12479018"
         echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> $GITHUB_ENV
 
+    - name: Fix gradle.properties (MaxPermSize -> MaxMetaspaceSize)
+      run: |
+        find . -name "gradle.properties" -not -path "*/build/*" -exec sed -i 's/-XX:MaxPermSize=[0-9]*m/-XX:MaxMetaspaceSize=4096m/g' {} \;
+        echo "--- gradle.properties after fix ---"
+        find . -name "gradle.properties" -not -path "*/build/*" -exec cat {} \;
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
     - name: Build Debug APK
-      run: ./gradlew :TMessagesProj_App:assembleDebug --stacktrace
+      run: ./gradlew :TMessagesProj_App:assembleDebug --stacktrace --info
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: telegram-debug-apk
         path: TMessagesProj_App/build/outputs/apk/**/*.apk
+        if-no-files-found: warn

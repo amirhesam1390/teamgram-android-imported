@@ -49,9 +49,14 @@ jobs:
 
     - name: Ensure google-services.json
       run: |
-        APP_DIR=$(find . -maxdepth 3 -name "build.gradle" -not -path "*/build/*" | while read f; do
-          if grep -q "com.android.application" "$f" 2>/dev/null; then dirname "$f"; break; fi
-        done)
+        # ماژول اصلی TMessagesProj هست (نه TMessagesProj_App)
+        APP_DIR="./TMessagesProj"
+        if [ ! -d "$APP_DIR" ]; then
+          # اگه نبود، خودکار پیدا کن
+          APP_DIR=$(find . -maxdepth 3 -name "build.gradle" -not -path "*/build/*" | while read f; do
+            if grep -q "com.android.application" "$f" 2>/dev/null; then dirname "$f"; break; fi
+          done)
+        fi
         echo "APP_DIR=$APP_DIR"
         [ -z "$APP_DIR" ] && exit 1
         if [ ! -f "$APP_DIR/google-services.json" ]; then
@@ -68,11 +73,11 @@ jobs:
     - name: Grant execute permission
       run: chmod +x gradlew
 
-    - name: Build APK (arm64 only)
+    # ⬇️ نکته: ماژول TMessagesProj، ABI armeabi-v7a
+    - name: Build APK (armeabi-v7a)
       run: |
-        ./gradlew :TMessagesProj_App:assembleAfatDebug \
-          -Pandroid.injected.build.abi=arm64-v8a \
-          -PabiFilters=arm64-v8a \
+        ./gradlew :TMessagesProj:assembleAfatDebug \
+          -Pandroid.injected.build.abi=armeabi-v7a \
           --stacktrace --no-daemon \
           --max-workers=4
 

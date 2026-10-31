@@ -32,20 +32,18 @@ jobs:
       run: |
         export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
         yes | sdkmanager --licenses || true
-        sdkmanager "ndk;27.2.12479018"
-        echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> $GITHUB_ENV
+        sdkmanager "ndk;20.0.5594570"
+        echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/20.0.5594570" >> $GITHUB_ENV
 
-    - name: Fix gradle.properties (MaxPermSize -> MaxMetaspaceSize)
+    - name: Fix gradle.properties
       run: |
         find . -name "gradle.properties" -not -path "*/build/*" -exec sed -i 's/-XX:MaxPermSize=[0-9]*m/-XX:MaxMetaspaceSize=4096m/g' {} \;
-        echo "--- gradle.properties after fix ---"
-        find . -name "gradle.properties" -not -path "*/build/*" -exec cat {} \;
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
     - name: Build Debug APK
-      run: ./gradlew :TMessagesProj_App:assembleDebug --stacktrace --info
+      run: ./gradlew :TMessagesProj_App:assembleDebug --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4

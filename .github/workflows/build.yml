@@ -15,8 +15,8 @@ jobs:
       with:
         submodules: recursive
 
-    # برای نصب NDK از JDK 17 استفاده می‌کنیم (چون sdkmanager نیاز داره)
-    - name: Set up JDK 17 for SDK Manager
+    # از JDK 17 برای همه کارها استفاده می‌کنیم (هم SDK Manager، هم Gradle)
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
@@ -35,13 +35,6 @@ jobs:
         yes | sdkmanager --licenses || true
         sdkmanager "ndk;20.0.5594570"
         echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/20.0.5594570" >> $GITHUB_ENV
-
-    # حالا JDK رو به 11 برمی‌گردونیم تا Gradle بتونه بیلد کنه
-    - name: Set up JDK 11 for Gradle
-      uses: actions/setup-java@v4
-      with:
-        java-version: '11'
-        distribution: 'temurin'
 
     - name: Fix gradle.properties
       run: |

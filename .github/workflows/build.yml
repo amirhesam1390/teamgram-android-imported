@@ -49,10 +49,8 @@ jobs:
 
     - name: Ensure google-services.json
       run: |
-        # ماژول اصلی TMessagesProj هست (نه TMessagesProj_App)
         APP_DIR="./TMessagesProj"
         if [ ! -d "$APP_DIR" ]; then
-          # اگه نبود، خودکار پیدا کن
           APP_DIR=$(find . -maxdepth 3 -name "build.gradle" -not -path "*/build/*" | while read f; do
             if grep -q "com.android.application" "$f" 2>/dev/null; then dirname "$f"; break; fi
           done)
@@ -62,6 +60,22 @@ jobs:
         if [ ! -f "$APP_DIR/google-services.json" ]; then
           echo '{"project_info":{"project_number":"000000000000","project_id":"fake","storage_bucket":"fake.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000","android_client_info":{"package_name":"org.telegram.messenger"}},"oauth_client":[],"api_key":[{"current_key":"fake"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > "$APP_DIR/google-services.json"
         fi
+
+    # ⬇️⬇️⬇️ کلید حل مشکل: حذف خطوط AppCenter از AndroidUtilities.java
+    - name: Patch AndroidUtilities.java (remove AppCenter)
+      run: |
+        F="TMessagesProj/src/main/java/org/telegram/messenger/AndroidUtilities.java"
+        echo "=== Before patch (AppCenter lines) ==="
+        grep -n "appcenter\|AppCenter\|Distribute\|Crashes" "$F" | head -30
+        # حذف import ها
+        sed -i '/^import com\.microsoft\.appcenter/d' "$F"
+        # کامنت کردن بلوک های AppCenter
+        sed -i 's|^\(\s*\)Distribute\.setEnabledForDebuggableBuild|\1// Distribute.setEnabledForDebuggableBuild|' "$F"
+        sed -i 's|^\(\s*\)AppCenter\.start|\1// AppCenter.start|' "$F"
+        sed -i 's|^\(\s*\)AppCenter\.setUserId|\1// AppCenter.setUserId|' "$F"
+        sed -i 's|^\(\s*\)Distribute\.checkForUpdate|\1// Distribute.checkForUpdate|' "$F"
+        echo "=== After patch ==="
+        grep -n "appcenter\|AppCenter\|Distribute\|Crashes" "$F" | head -30 || echo "✅ No AppCenter references left"
 
     - name: Set signing props
       run: |
@@ -73,7 +87,6 @@ jobs:
     - name: Grant execute permission
       run: chmod +x gradlew
 
-    # ⬇️ نکته: ماژول TMessagesProj، ABI armeabi-v7a
     - name: Build APK (armeabi-v7a)
       run: |
         ./gradlew :TMessagesProj:assembleAfatDebug \

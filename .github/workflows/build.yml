@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 180
 
     steps:
     - name: Checkout repository
@@ -46,60 +47,34 @@ jobs:
         echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/21.4.7075529" >> $GITHUB_ENV
         echo "ANDROID_NDK=/usr/local/lib/android/sdk/ndk/21.4.7075529" >> $GITHUB_ENV
 
-    - name: Detect project dir
-      run: |
-        echo "=== ROOT ==="
-        ls -la
-        echo "=== gradlew found ==="
-        find . -maxdepth 4 -name "gradlew" -type f 2>/dev/null
-        echo "=== settings.gradle found ==="
-        find . -maxdepth 4 -name "settings.gradle*" -type f 2>/dev/null
-        echo "=== build.gradle files ==="
-        find . -maxdepth 4 -name "build.gradle" 2>/dev/null
-
-        # پیدا کردن پوشه‌ای که gradlew داره
-        GW=$(find . -maxdepth 4 -name "gradlew" -type f 2>/dev/null | head -1)
-        if [ -z "$GW" ]; then
-          echo "❌ gradlew not found anywhere!"
-          exit 1
-        fi
-        PROJ_ROOT=$(dirname "$GW")
-        echo "PROJ_ROOT=$PROJ_ROOT"
-        echo "PROJ_ROOT=$PROJ_ROOT" >> $GITHUB_ENV
-
     - name: Ensure google-services.json
       run: |
-        cd "$PROJ_ROOT"
         APP_DIR=$(find . -maxdepth 3 -name "build.gradle" -not -path "*/build/*" | while read f; do
-          if grep -q "com.android.application" "$f" 2>/dev/null; then
-            dirname "$f"
-            break
-          fi
+          if grep -q "com.android.application" "$f" 2>/dev/null; then dirname "$f"; break; fi
         done)
         echo "APP_DIR=$APP_DIR"
-        if [ -z "$APP_DIR" ]; then
-          echo "❌ Could not find android app module!"
-          exit 1
-        fi
+        [ -z "$APP_DIR" ] && exit 1
         if [ ! -f "$APP_DIR/google-services.json" ]; then
           echo '{"project_info":{"project_number":"000000000000","project_id":"fake","storage_bucket":"fake.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000","android_client_info":{"package_name":"org.telegram.messenger"}},"oauth_client":[],"api_key":[{"current_key":"fake"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > "$APP_DIR/google-services.json"
-          echo "✅ Created fake google-services.json"
         fi
 
     - name: Set signing props
       run: |
-        cd "$PROJ_ROOT"
         touch gradle.properties
         grep -q RELEASE_STORE_PASSWORD gradle.properties || echo "RELEASE_STORE_PASSWORD=android" >> gradle.properties
         grep -q RELEASE_KEY_ALIAS gradle.properties || echo "RELEASE_KEY_ALIAS=androiddebugkey" >> gradle.properties
         grep -q RELEASE_KEY_PASSWORD gradle.properties || echo "RELEASE_KEY_PASSWORD=android" >> gradle.properties
 
-    - name: Build APK
+    - name: Grant execute permission
+      run: chmod +x gradlew
+
+    - name: Build APK (arm64 only)
       run: |
-        cd "$PROJ_ROOT"
-        chmod +x gradlew
-        ./gradlew :TMessagesProj_App:assembleAfatDebug --stacktrace --no-daemon || \
-        ./gradlew assembleAfatDebug --stacktrace --no-daemon
+        ./gradlew :TMessagesProj_App:assembleAfatDebug \
+          -Pandroid.injected.build.abi=arm64-v8a \
+          -PabiFilters=arm64-v8a \
+          --stacktrace --no-daemon \
+          --max-workers=4
 
     - name: Upload APK
       uses: actions/upload-artifact@v4

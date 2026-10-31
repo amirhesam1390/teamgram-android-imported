@@ -61,15 +61,12 @@ jobs:
           echo '{"project_info":{"project_number":"000000000000","project_id":"fake","storage_bucket":"fake.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000","android_client_info":{"package_name":"org.telegram.messenger"}},"oauth_client":[],"api_key":[{"current_key":"fake"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > "$APP_DIR/google-services.json"
         fi
 
-    # ⬇️⬇️⬇️ کلید حل مشکل: حذف خطوط AppCenter از AndroidUtilities.java
     - name: Patch AndroidUtilities.java (remove AppCenter)
       run: |
         F="TMessagesProj/src/main/java/org/telegram/messenger/AndroidUtilities.java"
         echo "=== Before patch (AppCenter lines) ==="
         grep -n "appcenter\|AppCenter\|Distribute\|Crashes" "$F" | head -30
-        # حذف import ها
         sed -i '/^import com\.microsoft\.appcenter/d' "$F"
-        # کامنت کردن بلوک های AppCenter
         sed -i 's|^\(\s*\)Distribute\.setEnabledForDebuggableBuild|\1// Distribute.setEnabledForDebuggableBuild|' "$F"
         sed -i 's|^\(\s*\)AppCenter\.start|\1// AppCenter.start|' "$F"
         sed -i 's|^\(\s*\)AppCenter\.setUserId|\1// AppCenter.setUserId|' "$F"
@@ -87,10 +84,11 @@ jobs:
     - name: Grant execute permission
       run: chmod +x gradlew
 
-    - name: Build APK (armeabi-v7a)
+    # ⬇️⬇️⬇️ کلید حل مشکل: هر دو معماری arm64-v8a و armeabi-v7a
+    - name: Build APK (arm64-v8a + armeabi-v7a)
       run: |
         ./gradlew :TMessagesProj:assembleAfatDebug \
-          -Pandroid.injected.build.abi=armeabi-v7a \
+          -Pandroid.injected.build.abi=arm64-v8a,armeabi-v7a \
           --stacktrace --no-daemon \
           --max-workers=4
 

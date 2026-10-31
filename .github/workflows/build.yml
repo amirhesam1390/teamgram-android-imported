@@ -15,14 +15,12 @@ jobs:
       with:
         submodules: recursive
 
-    # 1) JDK 17 برای sdkmanager
     - name: Set up JDK 17 (for sdkmanager)
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    # 2) نصب SDK با اسکریپت مستقیم (بدون setup-android که مشکل JDK داره)
     - name: Install SDK 31 + NDK 21 + CMake
       run: |
         export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
@@ -39,28 +37,66 @@ jobs:
                 "ndk;21.4.7075529" \
                 "cmake;3.10.2.4988404"
 
-    # 3) برگشت به JDK 11 برای Gradle
     - name: Set up JDK 11 (for Gradle)
       uses: actions/setup-java@v4
       with:
         java-version: '11'
         distribution: 'temurin'
 
-    - name: Export NDK env
+    - name: Export env
       run: |
         echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
         echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
         echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/21.4.7075529" >> $GITHUB_ENV
         echo "ANDROID_NDK=/usr/local/lib/android/sdk/ndk/21.4.7075529" >> $GITHUB_ENV
 
-    - name: Ensure google-services.json
+    - name: Debug - show project structure
       run: |
-        if [ ! -f TMessagesProj_App/google-services.json ]; then
-          echo '{"project_info":{"project_number":"000000000000","project_id":"fake","storage_bucket":"fake.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000","android_client_info":{"package_name":"org.telegram.messenger"}},"oauth_client":[],"api_key":[{"current_key":"fake"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > TMessagesProj_App/google-services.json
+        echo "=== Root ==="
+        ls -la
+        echo "=== Find build.gradle files ==="
+        find . -maxdepth 3 -name "build.gradle" -not -path "*/node_modules/*" 2>/dev/null
+        echo "=== Find AndroidManifest.xml ==="
+        find . -maxdepth 5 -name "AndroidManifest.xml" -not -path "*/build/*" 2>/dev/null | head -20
+
+    - name: Ensure google-services.json (auto-detect)
+      run: |
+        # پیدا کردن پوشه‌ای که build.gradle با com.android.application داره
+        APP_DIR=$(find . -maxdepth 3 -name "build.gradle" -not -path "*/build/*" | while read f; do
+          if grep -q "com.android.application" "$f" 2>/dev/null; then
+            dirname "$f"
+            break
+          fi
+        done)
+        echo "APP_DIR=$APP_DIR"
+        if [ -z "$APP_DIR" ]; then
+          echo "❌ Could not find android app module!"
+          exit 1
+        fi
+        echo "APP_DIR=$APP_DIR" >> $GITHUB_ENV
+
+        # پیدا کردن پوشه TMessagesProj (که NDK/CMake توشه)
+        if [ -f "$APP_DIR/../TMessagesProj/build.gradle" ]; then
+          PROJ_DIR="$APP_DIR/../TMessagesProj"
+        elif [ -f "$APP_DIR/build.gradle" ] && [ -d "$APP_DIR/jni" ]; then
+          PROJ_DIR="$APP_DIR"
+        else
+          PROJ_DIR=$(find . -maxdepth 3 -type d -name "TMessagesProj" | head -1)
+        fi
+        echo "PROJ_DIR=$PROJ_DIR"
+        echo "PROJ_DIR=$PROJ_DIR" >> $GITHUB_ENV
+
+        # ساخت google-services.json اگه نبود (توی APP_DIR)
+        if [ ! -f "$APP_DIR/google-services.json" ]; then
+          echo '{"project_info":{"project_number":"000000000000","project_id":"fake","storage_bucket":"fake.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000","android_client_info":{"package_name":"org.telegram.messenger"}},"oauth_client":[],"api_key":[{"current_key":"fake"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > "$APP_DIR/google-services.json"
+          echo "✅ Created fake google-services.json at $APP_DIR"
+        else
+          echo "✅ google-services.json already exists at $APP_DIR"
         fi
 
     - name: Set signing props
       run: |
+        touch gradle.properties
         grep -q RELEASE_STORE_PASSWORD gradle.properties || echo "RELEASE_STORE_PASSWORD=android" >> gradle.properties
         grep -q RELEASE_KEY_ALIAS gradle.properties || echo "RELEASE_KEY_ALIAS=androiddebugkey" >> gradle.properties
         grep -q RELEASE_KEY_PASSWORD gradle.properties || echo "RELEASE_KEY_PASSWORD=android" >> gradle.properties
@@ -69,12 +105,14 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build APK
-      run: ./gradlew :TMessagesProj_App:assembleAfatDebug --stacktrace --no-daemon
+      run: ./gradlew :TMessagesProj_App:assembleAfatDebug --stacktrace --no-daemon || \
+           ./gradlew assembleAfatDebug --stacktrace --no-daemon
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: telegram-debug-apk
-        path: TMessagesProj_App/build/outputs/apk/**/*.apk
+        path: |
+          **/build/outputs/apk/**/*.apk
         if-no-files-found: warn

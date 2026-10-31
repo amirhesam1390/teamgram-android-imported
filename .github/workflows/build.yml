@@ -29,13 +29,9 @@ jobs:
         if [ ! -x "$SDKMGR" ]; then
           SDKMGR=$(find $ANDROID_SDK_ROOT/cmdline-tools -name sdkmanager | head -1)
         fi
-        echo "Using sdkmanager: $SDKMGR"
         yes | $SDKMGR --licenses || true
-        $SDKMGR "platform-tools" \
-                "platforms;android-31" \
-                "build-tools;31.0.0" \
-                "ndk;21.4.7075529" \
-                "cmake;3.10.2.4988404"
+        $SDKMGR "platform-tools" "platforms;android-31" "build-tools;31.0.0" \
+                "ndk;21.4.7075529" "cmake;3.10.2.4988404"
 
     - name: Set up JDK 11 (for Gradle)
       uses: actions/setup-java@v4
@@ -50,18 +46,30 @@ jobs:
         echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/21.4.7075529" >> $GITHUB_ENV
         echo "ANDROID_NDK=/usr/local/lib/android/sdk/ndk/21.4.7075529" >> $GITHUB_ENV
 
-    - name: Debug - show project structure
+    - name: Detect project dir
       run: |
-        echo "=== Root ==="
+        echo "=== ROOT ==="
         ls -la
-        echo "=== Find build.gradle files ==="
-        find . -maxdepth 3 -name "build.gradle" -not -path "*/node_modules/*" 2>/dev/null
-        echo "=== Find AndroidManifest.xml ==="
-        find . -maxdepth 5 -name "AndroidManifest.xml" -not -path "*/build/*" 2>/dev/null | head -20
+        echo "=== gradlew found ==="
+        find . -maxdepth 4 -name "gradlew" -type f 2>/dev/null
+        echo "=== settings.gradle found ==="
+        find . -maxdepth 4 -name "settings.gradle*" -type f 2>/dev/null
+        echo "=== build.gradle files ==="
+        find . -maxdepth 4 -name "build.gradle" 2>/dev/null
 
-    - name: Ensure google-services.json (auto-detect)
+        # پیدا کردن پوشه‌ای که gradlew داره
+        GW=$(find . -maxdepth 4 -name "gradlew" -type f 2>/dev/null | head -1)
+        if [ -z "$GW" ]; then
+          echo "❌ gradlew not found anywhere!"
+          exit 1
+        fi
+        PROJ_ROOT=$(dirname "$GW")
+        echo "PROJ_ROOT=$PROJ_ROOT"
+        echo "PROJ_ROOT=$PROJ_ROOT" >> $GITHUB_ENV
+
+    - name: Ensure google-services.json
       run: |
-        # پیدا کردن پوشه‌ای که build.gradle با com.android.application داره
+        cd "$PROJ_ROOT"
         APP_DIR=$(find . -maxdepth 3 -name "build.gradle" -not -path "*/build/*" | while read f; do
           if grep -q "com.android.application" "$f" 2>/dev/null; then
             dirname "$f"
@@ -73,46 +81,30 @@ jobs:
           echo "❌ Could not find android app module!"
           exit 1
         fi
-        echo "APP_DIR=$APP_DIR" >> $GITHUB_ENV
-
-        # پیدا کردن پوشه TMessagesProj (که NDK/CMake توشه)
-        if [ -f "$APP_DIR/../TMessagesProj/build.gradle" ]; then
-          PROJ_DIR="$APP_DIR/../TMessagesProj"
-        elif [ -f "$APP_DIR/build.gradle" ] && [ -d "$APP_DIR/jni" ]; then
-          PROJ_DIR="$APP_DIR"
-        else
-          PROJ_DIR=$(find . -maxdepth 3 -type d -name "TMessagesProj" | head -1)
-        fi
-        echo "PROJ_DIR=$PROJ_DIR"
-        echo "PROJ_DIR=$PROJ_DIR" >> $GITHUB_ENV
-
-        # ساخت google-services.json اگه نبود (توی APP_DIR)
         if [ ! -f "$APP_DIR/google-services.json" ]; then
           echo '{"project_info":{"project_number":"000000000000","project_id":"fake","storage_bucket":"fake.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000","android_client_info":{"package_name":"org.telegram.messenger"}},"oauth_client":[],"api_key":[{"current_key":"fake"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > "$APP_DIR/google-services.json"
-          echo "✅ Created fake google-services.json at $APP_DIR"
-        else
-          echo "✅ google-services.json already exists at $APP_DIR"
+          echo "✅ Created fake google-services.json"
         fi
 
     - name: Set signing props
       run: |
+        cd "$PROJ_ROOT"
         touch gradle.properties
         grep -q RELEASE_STORE_PASSWORD gradle.properties || echo "RELEASE_STORE_PASSWORD=android" >> gradle.properties
         grep -q RELEASE_KEY_ALIAS gradle.properties || echo "RELEASE_KEY_ALIAS=androiddebugkey" >> gradle.properties
         grep -q RELEASE_KEY_PASSWORD gradle.properties || echo "RELEASE_KEY_PASSWORD=android" >> gradle.properties
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-
     - name: Build APK
-      run: ./gradlew :TMessagesProj_App:assembleAfatDebug --stacktrace --no-daemon || \
-           ./gradlew assembleAfatDebug --stacktrace --no-daemon
+      run: |
+        cd "$PROJ_ROOT"
+        chmod +x gradlew
+        ./gradlew :TMessagesProj_App:assembleAfatDebug --stacktrace --no-daemon || \
+        ./gradlew assembleAfatDebug --stacktrace --no-daemon
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: telegram-debug-apk
-        path: |
-          **/build/outputs/apk/**/*.apk
+        path: '**/build/outputs/apk/**/*.apk'
         if-no-files-found: warn

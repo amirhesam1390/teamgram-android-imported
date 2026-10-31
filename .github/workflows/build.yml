@@ -50,13 +50,6 @@ jobs:
     - name: Ensure google-services.json
       run: |
         APP_DIR="./TMessagesProj"
-        if [ ! -d "$APP_DIR" ]; then
-          APP_DIR=$(find . -maxdepth 3 -name "build.gradle" -not -path "*/build/*" | while read f; do
-            if grep -q "com.android.application" "$f" 2>/dev/null; then dirname "$f"; break; fi
-          done)
-        fi
-        echo "APP_DIR=$APP_DIR"
-        [ -z "$APP_DIR" ] && exit 1
         if [ ! -f "$APP_DIR/google-services.json" ]; then
           echo '{"project_info":{"project_number":"000000000000","project_id":"fake","storage_bucket":"fake.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000","android_client_info":{"package_name":"org.telegram.messenger"}},"oauth_client":[],"api_key":[{"current_key":"fake"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}],"configuration_version":"1"}' > "$APP_DIR/google-services.json"
         fi
@@ -64,33 +57,18 @@ jobs:
     - name: Patch AndroidUtilities.java (remove AppCenter)
       run: |
         F="TMessagesProj/src/main/java/org/telegram/messenger/AndroidUtilities.java"
-        echo "=== Before patch ==="
-        grep -n "appcenter\|AppCenter\|Distribute\|Crashes" "$F" | head -30
         sed -i '/^import com\.microsoft\.appcenter/d' "$F"
         sed -i 's|^\(\s*\)Distribute\.setEnabledForDebuggableBuild|\1// Distribute.setEnabledForDebuggableBuild|' "$F"
         sed -i 's|^\(\s*\)AppCenter\.start|\1// AppCenter.start|' "$F"
         sed -i 's|^\(\s*\)AppCenter\.setUserId|\1// AppCenter.setUserId|' "$F"
         sed -i 's|^\(\s*\)Distribute\.checkForUpdate|\1// Distribute.checkForUpdate|' "$F"
-        echo "=== After patch ==="
-        grep -n "appcenter\|AppCenter\|Distribute\|Crashes" "$F" | head -30 || echo "✅ No AppCenter references left"
-
-    - name: Decode Keystore
-      run: |
-        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-release-key.keystore
-        ls -la my-release-key.keystore
-        file my-release-key.keystore
 
     - name: Grant execute permission
       run: chmod +x gradlew
 
-    - name: Build Signed APK (arm64-v8a + armeabi-v7a)
+    - name: Build APK
       run: |
         ./gradlew :TMessagesProj:assembleAfatDebug \
-          -Pandroid.injected.build.abi=arm64-v8a,armeabi-v7a \
-          -Pandroid.injected.signing.store.file=$(pwd)/my-release-key.keystore \
-          -Pandroid.injected.signing.store.password='${{ secrets.RELEASE_STORE_PASSWORD }}' \
-          -Pandroid.injected.signing.key.alias='${{ secrets.RELEASE_KEY_ALIAS }}' \
-          -Pandroid.injected.signing.key.password='${{ secrets.RELEASE_KEY_PASSWORD }}' \
           --stacktrace --no-daemon --max-workers=4
 
     - name: Upload APK

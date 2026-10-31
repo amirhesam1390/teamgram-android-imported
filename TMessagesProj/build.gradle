@@ -120,40 +120,48 @@ android {
 
     flavorDimensions "minApi"
 
-    // ✅ این بخش دقیقاً همان چیزی است که باید باشد (بدون minSdkVersion)
+    // ✅ این بخش اصلاح شد و به حالت چندخطی استاندارد برگشت
     productFlavors {
-        armv7 { ndk { abiFilters "armeabi-v7a" } ext { abiVersionCode = 1 } }
-        x86 { ndk { abiFilters "x86" } ext { abiVersionCode = 2 } }
-        
-        armv7_SDK23 { 
-            ndk { abiFilters "armeabi-v7a" } 
-            sourceSets.debug { manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml' } 
-            sourceSets.release { manifest.srcFile 'config/release/AndroidManifest_SDK23.xml' } 
-            ext { abiVersionCode = 3 } 
+        armv7 {
+            ndk { abiFilters "armeabi-v7a" }
+            ext { abiVersionCode = 1 }
         }
-        x86_SDK23 { 
-            ndk { abiFilters "x86" } 
-            sourceSets.debug { manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml' } 
-            sourceSets.release { manifest.srcFile 'config/release/AndroidManifest_SDK23.xml' } 
-            ext { abiVersionCode = 4 } 
+        x86 {
+            ndk { abiFilters "x86" }
+            ext { abiVersionCode = 2 }
         }
-        
-        arm64 { ndk { abiFilters "arm64-v8a" } ext { abiVersionCode = 5 } }
-        x64 { ndk { abiFilters "x86_64" } ext { abiVersionCode = 6 } }
-        
-        arm64_SDK23 { 
-            ndk { abiFilters "arm64-v8a" } 
-            sourceSets.debug { manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml' } 
-            sourceSets.release { manifest.srcFile 'config/release/AndroidManifest_SDK23.xml' } 
-            ext { abiVersionCode = 7 } 
+        armv7_SDK23 {
+            ndk { abiFilters "armeabi-v7a" }
+            sourceSets.debug { manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml' }
+            sourceSets.release { manifest.srcFile 'config/release/AndroidManifest_SDK23.xml' }
+            ext { abiVersionCode = 3 }
         }
-        x64_SDK23 { 
-            ndk { abiFilters "x86_64" } 
-            sourceSets.debug { manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml' } 
-            sourceSets.release { manifest.srcFile 'config/release/AndroidManifest_SDK23.xml' } 
-            ext { abiVersionCode = 8 } 
+        x86_SDK23 {
+            ndk { abiFilters "x86" }
+            sourceSets.debug { manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml' }
+            sourceSets.release { manifest.srcFile 'config/release/AndroidManifest_SDK23.xml' }
+            ext { abiVersionCode = 4 }
         }
-        
+        arm64 {
+            ndk { abiFilters "arm64-v8a" }
+            ext { abiVersionCode = 5 }
+        }
+        x64 {
+            ndk { abiFilters "x86_64" }
+            ext { abiVersionCode = 6 }
+        }
+        arm64_SDK23 {
+            ndk { abiFilters "arm64-v8a" }
+            sourceSets.debug { manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml' }
+            sourceSets.release { manifest.srcFile 'config/release/AndroidManifest_SDK23.xml' }
+            ext { abiVersionCode = 7 }
+        }
+        x64_SDK23 {
+            ndk { abiFilters "x86_64" }
+            sourceSets.debug { manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml' }
+            sourceSets.release { manifest.srcFile 'config/release/AndroidManifest_SDK23.xml' }
+            ext { abiVersionCode = 8 }
+        }
         afat {
             ndk { abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64" }
             sourceSets.debug { manifest.srcFile 'config/debug/AndroidManifest_SDK23.xml' }
@@ -179,7 +187,6 @@ android {
         }
     }
 
-    // ✅ minSdkVersion فقط اینجا تعریف شده است
     defaultConfig {
         minSdkVersion 23
         targetSdkVersion 33

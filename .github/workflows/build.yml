@@ -15,7 +15,6 @@ jobs:
       with:
         submodules: recursive
 
-    # مرحله ۱: JDK 17 فقط برای نصب NDK
     - name: Set up JDK 17 for SDK Manager
       uses: actions/setup-java@v4
       with:
@@ -36,7 +35,6 @@ jobs:
         sdkmanager "ndk;20.0.5594570"
         echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/20.0.5594570" >> $GITHUB_ENV
 
-    # مرحله ۲: حالا JDK 11 برای بیلد (AGP 7.0.1 حداقل 11 می‌خواد)
     - name: Set up JDK 11 for Gradle
       uses: actions/setup-java@v4
       with:
@@ -55,4 +53,4 @@ jobs:
       with:
         name: telegram-debug-apk
         path: TMessagesProj_App/build/outputs/apk/**/*.apk
-        if-no-files-found: war
+        if-no-files-found: warn
